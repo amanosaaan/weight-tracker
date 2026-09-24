@@ -164,6 +164,7 @@ h1 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
+  margin-bottom: 16px;
 }
 
 @media (min-width: 480px) {
@@ -352,13 +353,14 @@ th:first-child, td:first-child {
 
 #record-form {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .field label {
@@ -369,6 +371,7 @@ th:first-child, td:first-child {
 
 .field input {
   width: 100%;
+  min-width: 0;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -391,7 +394,7 @@ th:first-child, td:first-child {
 .datetime-fields {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
 }
 
