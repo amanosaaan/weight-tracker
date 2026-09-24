@@ -246,6 +246,10 @@ canvas {
   max-width: 100%;
 }
 
+.table-scroll {
+  overflow-x: auto;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

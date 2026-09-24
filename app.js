@@ -99,17 +99,20 @@ function renderHome() {
   const heroCard = document.getElementById('hero-card');
   const statsGrid = document.getElementById('stats-grid');
   const homeEmpty = document.getElementById('home-empty');
+  const allRecordsCard = document.getElementById('all-records-card');
   heroCard.innerHTML = '';
   statsGrid.innerHTML = '';
 
   if (records.length === 0) {
     heroCard.style.display = 'none';
     statsGrid.style.display = 'none';
+    allRecordsCard.style.display = 'none';
     homeEmpty.hidden = false;
     return;
   }
   heroCard.style.display = '';
   statsGrid.style.display = '';
+  allRecordsCard.style.display = '';
   homeEmpty.hidden = true;
 
   const latest = records[records.length - 1];
@@ -142,6 +145,40 @@ function renderHome() {
       <div class="delta ${delta ? delta.cls : ''}">${delta ? delta.text : ''}</div>
     `;
     statsGrid.appendChild(div);
+  });
+
+  renderAllRecordsTable();
+}
+
+function renderAllRecordsTable() {
+  const body = document.getElementById('all-records-body');
+  body.innerHTML = '';
+
+  [...records].reverse().forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${formatDateTime(r.timestamp)}</td>
+      <td>${r.weight}kg</td>
+      <td>${r.bodyFat}%</td>
+      <td>${r.muscleMass}kg</td>
+      <td>${r.visceralFat}</td>
+      <td>${r.bmi}</td>
+      <td><button class="delete-btn" data-timestamp="${r.timestamp}">削除</button></td>
+    `;
+    body.appendChild(tr);
+  });
+
+  body.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('この記録を削除しますか？')) return;
+      btn.disabled = true;
+      try {
+        await deleteRecord(btn.dataset.timestamp);
+        await reload();
+      } catch (err) {
+        setStatus('削除に失敗しました: ' + err.message, true);
+      }
+    });
   });
 }
 
