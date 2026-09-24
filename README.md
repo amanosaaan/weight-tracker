@@ -6,41 +6,42 @@
 - データ保存: Google スプレッドシート
 - API: Google Apps Script（GAS）のウェブアプリ
 
+公開中の URL: https://amanosaaan.github.io/weight-tracker/
+
 認証機能はありません。URL を知っている人は誰でも閲覧・記録・削除ができます。公開範囲に注意してください。
 
-## セットアップ手順
+## 構成
 
-### 1. Google スプレッドシートと Apps Script を用意する
+- `index.html` / `style.css` / `app.js`: フロントエンド（GitHub Pages で配信）
+- `config.js`: GAS のウェブアプリ URL を保持する設定ファイル
+- `apps-script/`: [clasp](https://github.com/google/clasp)（Google公式CLI）で管理する Apps Script プロジェクト
+  - `コード.js`: バックエンド本体（`doGet`/`doPost`）
+  - `appsscript.json`: マニフェスト。`webapp.access: ANYONE_ANONYMOUS` / `executeAs: USER_DEPLOYING` で匿名アクセス可能なウェブアプリとして設定済み
+  - `.clasp.json`: 紐付け先の Apps Script プロジェクト ID
 
-1. Google スプレッドシートを新規作成する（シート名や中身は空でOK）。
-2. メニューの「拡張機能」→「Apps Script」を開く。
-3. デフォルトで開かれる `Code.gs` の中身を全部消し、このリポジトリの [`apps-script/Code.gs`](apps-script/Code.gs) の内容を貼り付けて保存する。
-4. 右上の「デプロイ」→「新しいデプロイ」を選択。
-5. 歯車アイコンから種類「ウェブアプリ」を選択し、以下を設定する。
-   - 実行するユーザー: **自分**
-   - アクセスできるユーザー: **全員**
-6. 「デプロイ」をクリックし、発行された **ウェブアプリの URL**（`https://script.google.com/macros/s/.../exec`）をコピーする。
+## Apps Script を更新したいとき
 
-初回アクセス時にシートへ `records` という名前のタブと見出し行が自動作成されます。
+`apps-script/` ディレクトリで clasp を使って push・deploy する。
 
-### 2. フロントエンドに URL を設定する
-
-[`config.js`](config.js) の `GAS_URL` を、手順1でコピーしたウェブアプリの URL に書き換える。
-
-```js
-const GAS_URL = 'https://script.google.com/macros/s/XXXXXXXXXXXX/exec';
+```bash
+cd apps-script
+npx clasp login      # 初回のみ。ブラウザでGoogleアカウントを認可
+npx clasp push        # コードをApps Scriptプロジェクトに反映
+npx clasp deploy -d "説明"   # 新しいバージョンをウェブアプリとしてデプロイ
 ```
 
-### 3. GitHub Pages で公開する
+`clasp deploy` は毎回新しいデプロイ ID（＝新しい URL）を発行する。既存の URL（`config.js` の `GAS_URL`）を変えずに更新したい場合は、既存デプロイを更新する:
 
-1. このフォルダの内容を GitHub リポジトリに push する。
-2. リポジトリの Settings → Pages を開く。
-3. Source を「Deploy from a branch」、Branch を `main` / `/ (root)` に設定して保存する。
-4. 数分後に表示される URL（`https://<ユーザー名>.github.io/<リポジトリ名>/`）にスマホからもアクセスできる。
+```bash
+npx clasp deployments        # 既存のデプロイ ID を確認
+npx clasp deploy -i <デプロイID> -d "説明"
+```
 
-### 4. Apps Script を更新したとき
+初回デプロイ後、スプレッドシートへのアクセス許可（OAuth 認可）をオーナーのアカウントで一度承認する必要がある（`https://.../exec` に直接アクセスし、「REVIEW PERMISSIONS」から許可）。
 
-`apps-script/Code.gs` を編集した場合は、Apps Script エディタ側にも同じ内容を貼り付け、「デプロイ」→「デプロイを管理」→ 編集（鉛筆アイコン）→ バージョン「新バージョン」を選んで再デプロイする（URL は変わらない）。
+## GitHub Pages への反映
+
+`main` ブランチの `/`(root) を GitHub Pages のソースに設定済み。`git push` するだけで数分後に公開ページへ反映される。
 
 ## ローカルで試す
 
