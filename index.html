@@ -8,71 +8,94 @@
 </head>
 <body>
 <div class="container">
-  <h1>体重管理</h1>
+  <header class="topbar">
+    <h1>体重管理</h1>
+    <button id="add-btn" class="add-btn" type="button">＋ 記録する</button>
+  </header>
 
-  <div class="stats" id="stats"></div>
+  <nav class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="home" type="button">ホーム</button>
+    <button class="tab-btn" data-tab="graph" type="button">グラフ</button>
+  </nav>
 
-  <div class="card">
+  <section id="home-view" class="view">
+    <div class="hero-card" id="hero-card"></div>
+    <div class="stats-grid" id="stats-grid"></div>
+    <div class="empty" id="home-empty" hidden>
+      まだ記録がありません。「＋ 記録する」から最初のデータを入力しましょう。
+    </div>
+  </section>
+
+  <section id="graph-view" class="view" hidden>
+    <div class="metric-tabs" id="metric-tabs">
+      <button class="metric-btn active" data-metric="weight" type="button">体重</button>
+      <button class="metric-btn" data-metric="bodyFat" type="button">体脂肪率</button>
+      <button class="metric-btn" data-metric="muscleMass" type="button">骨格筋肉量</button>
+      <button class="metric-btn" data-metric="visceralFat" type="button">内臓脂肪</button>
+      <button class="metric-btn" data-metric="bmi" type="button">BMI</button>
+    </div>
+
+    <div class="card">
+      <div class="graph-current" id="graph-current"></div>
+      <canvas id="mainChart" height="220"></canvas>
+    </div>
+
+    <div class="card">
+      <table id="records-table">
+        <thead>
+          <tr>
+            <th>日時</th>
+            <th id="records-th-value">体重</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="records-body"></tbody>
+      </table>
+      <div class="empty" id="empty-message">まだ記録がありません</div>
+    </div>
+  </section>
+
+  <div class="status" id="status"></div>
+</div>
+
+<div id="modal-backdrop" class="modal-backdrop" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <h2>記録する</h2>
+      <button id="modal-close" class="icon-btn" type="button">×</button>
+    </div>
     <form id="record-form">
-      <div>
+      <div class="field">
         <label for="weight">体重 (kg)</label>
         <input type="number" step="0.1" id="weight" required>
       </div>
-      <div>
+      <div class="field">
         <label for="bodyFat">体脂肪率 (%)</label>
         <input type="number" step="0.1" id="bodyFat" required>
       </div>
-      <div>
+      <div class="field">
         <label for="muscleMass">骨格筋肉量 (kg)</label>
         <input type="number" step="0.1" id="muscleMass" required>
       </div>
-      <div>
+      <div class="field">
         <label for="visceralFat">内臓脂肪レベル</label>
         <input type="number" step="0.1" id="visceralFat" required>
       </div>
-      <div>
-        <label for="measuredDate">測定日</label>
-        <input type="date" id="measuredDate" required>
+
+      <button type="button" id="toggle-datetime" class="link-btn">日時を変更する（省略時は今の日時）</button>
+      <div id="datetime-fields" class="datetime-fields" hidden>
+        <div class="field">
+          <label for="measuredDate">測定日</label>
+          <input type="date" id="measuredDate">
+        </div>
+        <div class="field">
+          <label for="measuredTime">時刻</label>
+          <input type="time" id="measuredTime">
+        </div>
       </div>
-      <div>
-        <label for="measuredTime">時刻</label>
-        <input type="time" id="measuredTime" required>
-      </div>
-      <div class="full">
-        <button type="submit" class="primary" id="submit-btn">記録する</button>
-      </div>
+
+      <button type="submit" class="primary full-btn" id="submit-btn">記録する</button>
     </form>
-    <div class="status" id="status"></div>
-  </div>
-
-  <div class="card">
-    <canvas id="weightChart" height="180"></canvas>
-  </div>
-  <div class="card">
-    <canvas id="bodyFatChart" height="180"></canvas>
-  </div>
-  <div class="card">
-    <canvas id="muscleMassChart" height="180"></canvas>
-  </div>
-  <div class="card">
-    <canvas id="visceralFatChart" height="180"></canvas>
-  </div>
-
-  <div class="card">
-    <table id="records-table">
-      <thead>
-        <tr>
-          <th>日時</th>
-          <th>体重</th>
-          <th>体脂肪率</th>
-          <th>骨格筋肉量</th>
-          <th>内臓脂肪</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="records-body"></tbody>
-    </table>
-    <div class="empty" id="empty-message">まだ記録がありません</div>
   </div>
 </div>
 

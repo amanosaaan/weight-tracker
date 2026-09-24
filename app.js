@@ -3,16 +3,27 @@ const submitBtn = document.getElementById('submit-btn');
 const form = document.getElementById('record-form');
 const measuredDateInput = document.getElementById('measuredDate');
 const measuredTimeInput = document.getElementById('measuredTime');
+const modalBackdrop = document.getElementById('modal-backdrop');
+const addBtn = document.getElementById('add-btn');
+const modalCloseBtn = document.getElementById('modal-close');
+const toggleDatetimeBtn = document.getElementById('toggle-datetime');
+const datetimeFields = document.getElementById('datetime-fields');
 
-const charts = {};
+const METRICS = {
+  weight: { label: '体重', unit: 'kg', color: '#3b82f6' },
+  bodyFat: { label: '体脂肪率', unit: '%', color: '#f59e0b' },
+  muscleMass: { label: '骨格筋肉量', unit: 'kg', color: '#10b981' },
+  visceralFat: { label: '内臓脂肪レベル', unit: '', color: '#ef4444' },
+  bmi: { label: 'BMI', unit: '', color: '#8b5cf6' }
+};
+
 let records = [];
+let currentMetric = 'weight';
+let mainChart = null;
 
-function setDefaultDateTime() {
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  const iso = now.toISOString();
-  measuredDateInput.value = iso.slice(0, 10);
-  measuredTimeInput.value = iso.slice(11, 16);
+function computeBmi(weight) {
+  const heightM = HEIGHT_CM / 100;
+  return Math.round((weight / (heightM * heightM)) * 10) / 10;
 }
 
 function setStatus(message, isError) {
@@ -25,14 +36,18 @@ async function fetchRecords() {
   if (!res.ok) throw new Error('取得に失敗しました');
   const data = await res.json();
   return data
-    .map(r => ({
-      timestamp: r.timestamp,
-      height: Number(r.height),
-      weight: Number(r.weight),
-      bodyFat: Number(r.bodyFat),
-      muscleMass: Number(r.muscleMass),
-      visceralFat: Number(r.visceralFat)
-    }))
+    .map(r => {
+      const weight = Number(r.weight);
+      return {
+        timestamp: r.timestamp,
+        height: Number(r.height),
+        weight,
+        bodyFat: Number(r.bodyFat),
+        muscleMass: Number(r.muscleMass),
+        visceralFat: Number(r.visceralFat),
+        bmi: computeBmi(weight)
+      };
+    })
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 }
 
@@ -57,29 +72,116 @@ function formatDateTime(iso) {
   return d.toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+function formatDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
+
 function formatDateShort(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' });
 }
 
-function renderStats() {
-  const statsEl = document.getElementById('stats');
-  statsEl.innerHTML = '';
-  if (records.length === 0) return;
+function formatDelta(delta, digits) {
+  if (delta === null) return null;
+  const rounded = Math.round(delta * Math.pow(10, digits)) / Math.pow(10, digits);
+  if (rounded === 0) return { text: '前回と同じ', cls: '' };
+  const sign = rounded > 0 ? '+' : '';
+  return {
+    text: `前回より ${sign}${rounded}`,
+    cls: rounded > 0 ? 'up' : 'down'
+  };
+}
+
+// ---------- Home dashboard ----------
+
+function renderHome() {
+  const heroCard = document.getElementById('hero-card');
+  const statsGrid = document.getElementById('stats-grid');
+  const homeEmpty = document.getElementById('home-empty');
+  heroCard.innerHTML = '';
+  statsGrid.innerHTML = '';
+
+  if (records.length === 0) {
+    heroCard.style.display = 'none';
+    statsGrid.style.display = 'none';
+    homeEmpty.hidden = false;
+    return;
+  }
+  heroCard.style.display = '';
+  statsGrid.style.display = '';
+  homeEmpty.hidden = true;
+
   const latest = records[records.length - 1];
-  const items = [
-    { label: '身長', value: `${latest.height} cm` },
-    { label: '体重', value: `${latest.weight} kg` },
-    { label: '体脂肪率', value: `${latest.bodyFat} %` },
-    { label: '骨格筋肉量', value: `${latest.muscleMass} kg` },
-    { label: '内臓脂肪レベル', value: `${latest.visceralFat}` }
+  const prev = records.length > 1 ? records[records.length - 2] : null;
+
+  const weightDelta = prev ? formatDelta(latest.weight - prev.weight, 1) : null;
+  heroCard.innerHTML = `
+    <div class="hero-date">${formatDate(latest.timestamp)}</div>
+    <div class="hero-weight-row">
+      <div class="hero-weight">${latest.weight}</div>
+      <div class="hero-unit">kg</div>
+    </div>
+    ${weightDelta ? `<div class="hero-delta ${weightDelta.cls}">${weightDelta.text}kg</div>` : ''}
+  `;
+
+  const cards = [
+    { key: 'bodyFat', label: '体脂肪率', unit: '%', digits: 1 },
+    { key: 'muscleMass', label: '骨格筋肉量', unit: 'kg', digits: 1 },
+    { key: 'bmi', label: 'BMI', unit: '', digits: 1 },
+    { key: 'visceralFat', label: '内臓脂肪レベル', unit: '', digits: 1 }
   ];
-  items.forEach(item => {
+
+  cards.forEach(c => {
+    const delta = prev ? formatDelta(latest[c.key] - prev[c.key], c.digits) : null;
     const div = document.createElement('div');
-    div.className = 'stat';
-    div.innerHTML = `<div class="label">${item.label}</div><div class="value">${item.value}</div>`;
-    statsEl.appendChild(div);
+    div.className = 'stat-card';
+    div.innerHTML = `
+      <div class="label">${c.label}</div>
+      <div class="value">${latest[c.key]}${c.unit}</div>
+      <div class="delta ${delta ? delta.cls : ''}">${delta ? delta.text : ''}</div>
+    `;
+    statsGrid.appendChild(div);
   });
+}
+
+// ---------- Graph view ----------
+
+function buildChart() {
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  mainChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.3, pointRadius: 3 }] },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: false } }
+    }
+  });
+}
+
+function renderGraph() {
+  const metric = METRICS[currentMetric];
+  document.getElementById('records-th-value').textContent = metric.label;
+
+  const currentEl = document.getElementById('graph-current');
+  if (records.length === 0) {
+    currentEl.innerHTML = '';
+  } else {
+    const latest = records[records.length - 1];
+    currentEl.innerHTML = `
+      <div class="value">${latest[currentMetric]}${metric.unit}</div>
+      <div class="label">${metric.label}（${formatDate(latest.timestamp)}）</div>
+    `;
+  }
+
+  mainChart.data.labels = records.map(r => formatDateShort(r.timestamp));
+  mainChart.data.datasets[0].data = records.map(r => r[currentMetric]);
+  mainChart.data.datasets[0].borderColor = metric.color;
+  mainChart.data.datasets[0].backgroundColor = metric.color;
+  mainChart.update();
+
+  renderTable();
 }
 
 function renderTable() {
@@ -93,14 +195,12 @@ function renderTable() {
   }
   emptyMessage.style.display = 'none';
 
+  const metric = METRICS[currentMetric];
   [...records].reverse().forEach(r => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${formatDateTime(r.timestamp)}</td>
-      <td>${r.weight}</td>
-      <td>${r.bodyFat}</td>
-      <td>${r.muscleMass}</td>
-      <td>${r.visceralFat}</td>
+      <td>${r[currentMetric]}${metric.unit}</td>
       <td><button class="delete-btn" data-timestamp="${r.timestamp}">削除</button></td>
     `;
     body.appendChild(tr);
@@ -120,48 +220,61 @@ function renderTable() {
   });
 }
 
-function buildChart(canvasId, label, color, dataKey) {
-  const ctx = document.getElementById(canvasId).getContext('2d');
-  return new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [{
-        label,
-        data: [],
-        borderColor: color,
-        backgroundColor: color,
-        tension: 0.3,
-        pointRadius: 3
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: true } },
-      scales: { y: { beginAtZero: false } }
-    }
-  });
+// ---------- Tabs ----------
+
+document.getElementById('tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+  const tab = btn.dataset.tab;
+  document.getElementById('home-view').hidden = tab !== 'home';
+  document.getElementById('graph-view').hidden = tab !== 'graph';
+});
+
+document.getElementById('metric-tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('.metric-btn');
+  if (!btn) return;
+  document.querySelectorAll('.metric-btn').forEach(b => b.classList.toggle('active', b === btn));
+  currentMetric = btn.dataset.metric;
+  renderGraph();
+});
+
+// ---------- Modal ----------
+
+function openModal() {
+  form.reset();
+  datetimeFields.hidden = true;
+  modalBackdrop.hidden = false;
 }
 
-function renderCharts() {
-  const labels = records.map(r => formatDateShort(r.timestamp));
-  const setData = (chart, key) => {
-    chart.data.labels = labels;
-    chart.data.datasets[0].data = records.map(r => r[key]);
-    chart.update();
-  };
-  setData(charts.weight, 'weight');
-  setData(charts.bodyFat, 'bodyFat');
-  setData(charts.muscleMass, 'muscleMass');
-  setData(charts.visceralFat, 'visceralFat');
+function closeModal() {
+  modalBackdrop.hidden = true;
 }
+
+addBtn.addEventListener('click', openModal);
+modalCloseBtn.addEventListener('click', closeModal);
+modalBackdrop.addEventListener('click', (e) => {
+  if (e.target === modalBackdrop) closeModal();
+});
+
+toggleDatetimeBtn.addEventListener('click', () => {
+  datetimeFields.hidden = !datetimeFields.hidden;
+  if (!datetimeFields.hidden) {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    const iso = now.toISOString();
+    measuredDateInput.value = iso.slice(0, 10);
+    measuredTimeInput.value = iso.slice(11, 16);
+  }
+});
+
+// ---------- Load / submit ----------
 
 async function reload() {
   setStatus('読み込み中...');
   records = await fetchRecords();
-  renderStats();
-  renderTable();
-  renderCharts();
+  renderHome();
+  renderGraph();
   setStatus('');
 }
 
@@ -170,8 +283,12 @@ form.addEventListener('submit', async (e) => {
   submitBtn.disabled = true;
   setStatus('保存中...');
   try {
+    const timestamp = !datetimeFields.hidden && measuredDateInput.value && measuredTimeInput.value
+      ? new Date(`${measuredDateInput.value}T${measuredTimeInput.value}`).toISOString()
+      : new Date().toISOString();
+
     const record = {
-      timestamp: new Date(`${measuredDateInput.value}T${measuredTimeInput.value}`).toISOString(),
+      timestamp,
       height: HEIGHT_CM,
       weight: document.getElementById('weight').value,
       bodyFat: document.getElementById('bodyFat').value,
@@ -179,8 +296,7 @@ form.addEventListener('submit', async (e) => {
       visceralFat: document.getElementById('visceralFat').value
     };
     await createRecord(record);
-    form.reset();
-    setDefaultDateTime();
+    closeModal();
     await reload();
     setStatus('記録しました');
   } catch (err) {
@@ -191,11 +307,7 @@ form.addEventListener('submit', async (e) => {
 });
 
 (function init() {
-  setDefaultDateTime();
-  charts.weight = buildChart('weightChart', '体重 (kg)', '#3b82f6');
-  charts.bodyFat = buildChart('bodyFatChart', '体脂肪率 (%)', '#f59e0b');
-  charts.muscleMass = buildChart('muscleMassChart', '骨格筋肉量 (kg)', '#10b981');
-  charts.visceralFat = buildChart('visceralFatChart', '内臓脂肪レベル', '#ef4444');
+  buildChart();
 
   if (!GAS_URL || GAS_URL === 'YOUR_GAS_WEB_APP_URL_HERE') {
     setStatus('config.js に GAS_URL を設定してください', true);
