@@ -1,7 +1,8 @@
 const statusEl = document.getElementById('status');
 const submitBtn = document.getElementById('submit-btn');
 const form = document.getElementById('record-form');
-const measuredAtInput = document.getElementById('measuredAt');
+const measuredDateInput = document.getElementById('measuredDate');
+const measuredTimeInput = document.getElementById('measuredTime');
 
 const charts = {};
 let records = [];
@@ -9,7 +10,9 @@ let records = [];
 function setDefaultDateTime() {
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  measuredAtInput.value = now.toISOString().slice(0, 16);
+  const iso = now.toISOString();
+  measuredDateInput.value = iso.slice(0, 10);
+  measuredTimeInput.value = iso.slice(11, 16);
 }
 
 function setStatus(message, isError) {
@@ -168,8 +171,8 @@ form.addEventListener('submit', async (e) => {
   setStatus('保存中...');
   try {
     const record = {
-      timestamp: new Date(measuredAtInput.value).toISOString(),
-      height: document.getElementById('height').value,
+      timestamp: new Date(`${measuredDateInput.value}T${measuredTimeInput.value}`).toISOString(),
+      height: HEIGHT_CM,
       weight: document.getElementById('weight').value,
       bodyFat: document.getElementById('bodyFat').value,
       muscleMass: document.getElementById('muscleMass').value,

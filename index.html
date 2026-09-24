@@ -15,10 +15,6 @@
   <div class="card">
     <form id="record-form">
       <div>
-        <label for="height">身長 (cm)</label>
-        <input type="number" step="0.1" id="height" required>
-      </div>
-      <div>
         <label for="weight">体重 (kg)</label>
         <input type="number" step="0.1" id="weight" required>
       </div>
@@ -35,8 +31,12 @@
         <input type="number" step="0.1" id="visceralFat" required>
       </div>
       <div>
-        <label for="measuredAt">測定日時</label>
-        <input type="datetime-local" id="measuredAt" required>
+        <label for="measuredDate">測定日</label>
+        <input type="date" id="measuredDate" required>
+      </div>
+      <div>
+        <label for="measuredTime">時刻</label>
+        <input type="time" id="measuredTime" required>
       </div>
       <div class="full">
         <button type="submit" class="primary" id="submit-btn">記録する</button>
