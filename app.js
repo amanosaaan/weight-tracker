@@ -21,6 +21,25 @@ let records = [];
 let currentMetric = 'weight';
 let mainChart = null;
 
+const CACHE_KEY = 'wt_records_cache_v1';
+
+function loadCachedRecords() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveCachedRecords(data) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch (e) {
+    // ignore (private browsing, storage full, etc.)
+  }
+}
+
 function computeBmi(weight) {
   const heightM = HEIGHT_CM / 100;
   return Math.round((weight / (heightM * heightM)) * 10) / 10;
@@ -308,11 +327,19 @@ toggleDatetimeBtn.addEventListener('click', () => {
 // ---------- Load / submit ----------
 
 async function reload() {
-  setStatus('読み込み中...');
-  records = await fetchRecords();
-  renderHome();
-  renderGraph();
-  setStatus('');
+  const slowNoticeTimer = setTimeout(() => {
+    setStatus('起動に時間がかかっています。初回アクセス時は30秒ほどかかることがあります…');
+  }, 5000);
+  try {
+    setStatus('読み込み中...');
+    records = await fetchRecords();
+    saveCachedRecords(records);
+    renderHome();
+    renderGraph();
+    setStatus('');
+  } finally {
+    clearTimeout(slowNoticeTimer);
+  }
 }
 
 form.addEventListener('submit', async (e) => {
@@ -350,5 +377,14 @@ form.addEventListener('submit', async (e) => {
     setStatus('config.js に GAS_URL を設定してください', true);
     return;
   }
+
+  const cached = loadCachedRecords();
+  if (cached && cached.length > 0) {
+    records = cached;
+    renderHome();
+    renderGraph();
+    setStatus('前回の記録を表示中…最新データを読み込んでいます');
+  }
+
   reload().catch(err => setStatus('読み込みに失敗しました: ' + err.message, true));
 })();
